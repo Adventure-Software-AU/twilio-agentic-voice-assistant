@@ -1,6 +1,8 @@
 # Twilio Agentic Voice Assistant
 
-A demonstration implementation of an AI-driven voice agent built on [Twilio Conversation Relay](https://www.twilio.com/docs/voice/twiml/connect/conversationrelay).
+A sample voice agent implementation using [Twilio Conversation Relay](https://www.twilio.com/docs/voice/twiml/connect/conversationrelay) and OpenAI
+
+https://github.com/user-attachments/assets/74d9790b-30c2-421f-ad8f-81ba5b87c285
 
 ## Feature Summary
 
