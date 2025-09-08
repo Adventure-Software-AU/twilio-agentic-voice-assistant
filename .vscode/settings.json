@@ -1,0 +1,9 @@
+{
+  "workbench.colorCustomizations": {
+    "window.activeBorder": "#295cba",
+    "window.inactiveBorder": "#cccccc",
+    "activityBar.background": "#023146",
+    "titleBar.activeBackground": "#034562",
+    "titleBar.activeForeground": "#F6FCFF"
+  }
+}
