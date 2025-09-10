@@ -1,8 +1,8 @@
-import { CompanyDetails } from "../../shared/session/context.js";
+import { CompanyDetails } from '../../shared/session/context.js';
 
 export const company: CompanyDetails = {
-  name: "Owl Shopping",
+  name: 'Fix That Phone',
   description:
-    "A specialized delivery service that connects customers with personal shoppers to deliver everyday essentials from local stores",
-  email: "support@owl-shopping.com",
+    'A phone repair company that specializes in fixing all types of phones and tablets, including iPhones, iPads, Samsungs, and more. We offer fast and reliable service at affordable prices.',
+  email: 'support@fix-that-phone.com',
 };

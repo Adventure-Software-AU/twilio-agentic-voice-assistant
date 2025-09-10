@@ -26,7 +26,7 @@ export interface UserRecord extends BaseDBRecord {
 interface PaymentMethod extends BaseDBRecord {
   user_id: string;
   last_four: string;
-  type: "card";
+  type: 'card';
 }
 
 /****************************************************
@@ -43,7 +43,7 @@ export interface OrderRecord extends BaseDBRecord {
   description: string;
 }
 
-type OrderStatus = "pending" | "delivered" | "cancelled";
+type OrderStatus = 'pending' | 'delivered' | 'cancelled' | 'in-progress';
 
 export interface OrderLineRecord extends BaseDBRecord {
   order_id: string;
