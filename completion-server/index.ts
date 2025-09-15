@@ -1,43 +1,47 @@
-import { Router, type RequestHandler } from "express";
-import type { WebsocketRequestHandler } from "express-ws";
-import { getAgentConfig } from "../agent/index.js";
-import { deleteLogger, getMakeLogger } from "../lib/logger.js";
-import { hasEndPunctuation } from "../lib/sentences.js";
-import { prettyXML } from "../lib/xml.js";
+import { Router, type RequestHandler } from 'express';
+import type { WebsocketRequestHandler } from 'express-ws';
+import { getAgentConfig } from '../agent/index.js';
+import { deleteLogger, getMakeLogger } from '../lib/logger.js';
+import { hasEndPunctuation } from '../lib/sentences.js';
+import { prettyXML } from '../lib/xml.js';
 import {
   makeTransferToFlexHandoff,
   type TransferToFlexHandoff,
-} from "../modules/flex-transfer-to-agent/index.js";
-import { GovernanceService } from "../modules/governance/index.js";
-import { SummarizationService } from "../modules/summarization/index.js";
-import { DEFAULT_TWILIO_NUMBER, HOSTNAME } from "../shared/env.js";
-import type { CallDetails, SessionContext } from "../shared/session/context.js";
-import { AgentResolver } from "./agent-resolver/index.js";
-import type { AgentResolverConfig } from "./agent-resolver/types.js";
-import { OpenAIConsciousLoop } from "./conscious-loop/openai.js";
-import { makeCallDetail } from "./helpers.js";
-import { SessionStore } from "./session-store/index.js";
-import { warmUpSyncSession } from "./session-store/sync-client.js";
-import { updateCallStatus } from "./session-store/sync-queue.js";
+} from '../modules/flex-transfer-to-agent/index.js';
+import { GovernanceService } from '../modules/governance/index.js';
+import { SummarizationService } from '../modules/summarization/index.js';
+import {
+  DEFAULT_TWILIO_NUMBER,
+  HOSTNAME,
+  TWILIO_CONVERSATIONS_SVC_SID,
+} from '../shared/env.js';
+import type { CallDetails, SessionContext } from '../shared/session/context.js';
+import { AgentResolver } from './agent-resolver/index.js';
+import type { AgentResolverConfig } from './agent-resolver/types.js';
+import { OpenAIConsciousLoop } from './conscious-loop/openai.js';
+import { makeCallDetail } from './helpers.js';
+import { SessionStore } from './session-store/index.js';
+import { warmUpSyncSession } from './session-store/sync-client.js';
+import { updateCallStatus } from './session-store/sync-queue.js';
 import {
   ConversationRelayAdapter,
   makeConversationRelayTwiML,
   type HandoffData,
   type WrapupCallWebhookPayload,
-} from "./twilio/conversation-relay.js";
+} from './twilio/conversation-relay.js';
 import {
   endCall,
   placeCall,
   startRecording,
   type TwilioCallWebhookPayload,
-} from "./twilio/voice.js";
+} from './twilio/voice.js';
 
 const router = Router();
 
 /****************************************************
  Phone Number Webhooks
 ****************************************************/
-router.post("/incoming-call", async (req, res) => {
+router.post('/incoming-call', async (req, res) => {
   const body = req.body as TwilioCallWebhookPayload;
   const call: CallDetails = makeCallDetail(body);
 
@@ -58,36 +62,36 @@ router.post("/incoming-call", async (req, res) => {
       callSid: call.callSid,
       context,
       dtmfDetection: true,
-      interruptByDtmf: true,
       parameters: { agent, welcomeGreeting },
       welcomeGreeting,
+      intelligenceService: TWILIO_CONVERSATIONS_SVC_SID,
     });
-    log.info("/incoming-call", "twiml\n", prettyXML(twiml));
-    res.status(200).type("text/xml").end(twiml);
+    log.info('/incoming-call', 'twiml\n', prettyXML(twiml));
+    res.status(200).type('text/xml').end(twiml);
   } catch (error) {
-    log.error("/incoming-call", "unknown error", error);
-    res.status(500).json({ status: "error", error });
+    log.error('/incoming-call', 'unknown error', error);
+    res.status(500).json({ status: 'error', error });
   }
 });
 
-router.post("/call-status", async (req, res) => {
-  const callSid = req.body.CallSid as TwilioCallWebhookPayload["CallSid"];
+router.post('/call-status', async (req, res) => {
+  const callSid = req.body.CallSid as TwilioCallWebhookPayload['CallSid'];
   const callStatus = req.body
-    .CallStatus as TwilioCallWebhookPayload["CallStatus"];
+    .CallStatus as TwilioCallWebhookPayload['CallStatus'];
 
   const log = getMakeLogger(callSid);
 
   log.info(
-    "/call-status",
-    `call status updated to ${callStatus}, CallSid ${callSid}`,
+    '/call-status',
+    `call status updated to ${callStatus}, CallSid ${callSid}`
   );
 
   try {
     await updateCallStatus(callSid, callStatus);
   } catch (error) {
     log.warn(
-      "/call-status",
-      `unable to update call status in Sync, CallSid ${callSid}`,
+      '/call-status',
+      `unable to update call status in Sync, CallSid ${callSid}`
     );
   }
 
@@ -106,8 +110,8 @@ const outboundCallHandler: RequestHandler = async (req, res) => {
 
   if (!to || !from) {
     const error = `Cannot place outbound call. Missing to (${to}) or from (${from})`;
-    log.error("outbound", error);
-    res.status(400).send({ status: "failed", error });
+    log.error('outbound', error);
+    res.status(400).send({ status: 'failed', error });
     return;
   }
 
@@ -118,16 +122,16 @@ const outboundCallHandler: RequestHandler = async (req, res) => {
     res.status(200).json(call);
   } catch (error) {
     log.error(`/outbound, Error: `, error);
-    res.status(500).json({ status: "failed", error });
+    res.status(500).json({ status: 'failed', error });
   }
 };
 
-router.get("/outbound", outboundCallHandler);
-router.post("/outbound", outboundCallHandler);
+router.get('/outbound', outboundCallHandler);
+router.post('/outbound', outboundCallHandler);
 
 // This endpoint responds with TwiML to initiate the Conversation Relay connection.
 // Note: This is not technically necessary; the TwiML could be included with the call creation request. This was done so the /:callSid could be included in the websocket URL, which makes that part a bit cleaner to read.
-router.post("/outbound/answer", async (req, res) => {
+router.post('/outbound/answer', async (req, res) => {
   const body = req.body as TwilioCallWebhookPayload;
   const call: CallDetails = makeCallDetail(body);
 
@@ -153,24 +157,24 @@ router.post("/outbound/answer", async (req, res) => {
       welcomeGreeting,
       parameters: { agent, welcomeGreeting },
     });
-    res.status(200).type("text/xml").end(twiml);
+    res.status(200).type('text/xml').end(twiml);
   } catch (error) {
-    log.error("/incoming-call", "unknown error", error);
-    res.status(500).json({ status: "failed", error });
+    log.error('/incoming-call', 'unknown error', error);
+    res.status(500).json({ status: 'failed', error });
   }
 });
 
 /****************************************************
  Conversation Relay Websocket
 ****************************************************/
-export const CONVERSATION_RELAY_WS_ROUTE = "/convo-relay/:callSid";
+export const CONVERSATION_RELAY_WS_ROUTE = '/convo-relay/:callSid';
 export const conversationRelayWebsocketHandler: WebsocketRequestHandler = (
   ws,
-  req,
+  req
 ) => {
   const { callSid } = req.params;
   const log = getMakeLogger(callSid);
-  log.info("/convo-relay", `websocket initializing, CallSid ${callSid}`);
+  log.info('/convo-relay', `websocket initializing, CallSid ${callSid}`);
 
   const relay = new ConversationRelayAdapter<TransferToFlexHandoff>(ws);
   const store = new SessionStore(callSid);
@@ -186,7 +190,7 @@ export const conversationRelayWebsocketHandler: WebsocketRequestHandler = (
   });
 
   startRecording(callSid).then(({ mediaUrl }) => {
-    log.success("/convo-relay", `call recording url: ${mediaUrl}`);
+    log.success('/convo-relay', `call recording url: ${mediaUrl}`);
     store.setContext({
       call: { ...(store.context.call as CallDetails), recordingUrl: mediaUrl },
     });
@@ -198,7 +202,7 @@ export const conversationRelayWebsocketHandler: WebsocketRequestHandler = (
 
     // context is fetched in the API routes that generate the the ConversationRelay TwiML and then included as a <Parameter/>. This ensures that any data fetching, such as the user's profile, is completed before the websocket is initialized and the AI agent is engaged.
     // https://www.twilio.com/docs/voice/twiml/connect/conversationrelay#parameter-element
-    const context = "context" in params ? JSON.parse(params.context) : {};
+    const context = 'context' in params ? JSON.parse(params.context) : {};
     store.setContext({
       ...context,
       ...(await getAgentConfig()).context,
@@ -213,10 +217,10 @@ export const conversationRelayWebsocketHandler: WebsocketRequestHandler = (
     if (greeting) {
       store.turns.addBotText({
         content: greeting,
-        origin: "greeting",
-        status: "complete",
+        origin: 'greeting',
+        status: 'complete',
       });
-      log.info("llm.transcript", `"${greeting}"`);
+      log.info('llm.transcript', `"${greeting}"`);
     }
 
     // start subconscious
@@ -228,7 +232,7 @@ export const conversationRelayWebsocketHandler: WebsocketRequestHandler = (
     if (!ev.last) return; // do nothing on partial speech
     log.info(`relay.prompt`, `"${ev.voicePrompt}"`);
 
-    store.turns.addHumanText({ content: ev.voicePrompt, origin: "stt" });
+    store.turns.addHumanText({ content: ev.voicePrompt, origin: 'stt' });
     consciousLoop.run();
   });
 
@@ -236,7 +240,7 @@ export const conversationRelayWebsocketHandler: WebsocketRequestHandler = (
     log.info(
       `relay.interrupt`,
       `human interrupted bot`,
-      ev.utteranceUntilInterrupt,
+      ev.utteranceUntilInterrupt
     );
 
     consciousLoop.abort();
@@ -252,29 +256,29 @@ export const conversationRelayWebsocketHandler: WebsocketRequestHandler = (
     log.error(`relay.error`, `ConversationRelay error: ${ev.description}`);
   });
 
-  consciousLoop.on("text-chunk", (text, last, fullText) => {
+  consciousLoop.on('text-chunk', (text, last, fullText) => {
     const markAsLast = last || hasEndPunctuation(text);
     relay.sendTextToken(text, markAsLast); // send each token as it is received
 
-    if (last && fullText) log.info("llm.transcript", `"${fullText}"`);
+    if (last && fullText) log.info('llm.transcript', `"${fullText}"`);
   });
 
-  consciousLoop.on("dtmf", (digits) => {
+  consciousLoop.on('dtmf', (digits) => {
     relay.sendDTMF(digits);
-    log.info("llm", `dtmf (bot): ${digits}`);
+    log.info('llm', `dtmf (bot): ${digits}`);
   });
 
-  ws.on("close", () => {
+  ws.on('close', () => {
     governanceBot.stop();
     summaryBot.stop();
 
     log.info(
-      "relay",
-      "conversation relay ws closed.",
-      "\n/** session turns **/\n",
+      'relay',
+      'conversation relay ws closed.',
+      '\n/** session turns **/\n',
       JSON.stringify(store.turns.list(), null, 2),
-      "\n/** session context **/\n",
-      JSON.stringify(store.context, null, 2),
+      '\n/** session context **/\n',
+      JSON.stringify(store.context, null, 2)
     );
   });
 };
@@ -284,15 +288,15 @@ export const conversationRelayWebsocketHandler: WebsocketRequestHandler = (
  https://www.twilio.com/docs/voice/twiml/connect/conversationrelay#end-session-message
 ****************************************************/
 type AppHandoffData = HandoffData<TransferToFlexHandoff>;
-router.post("/wrapup-call", async (req, res) => {
+router.post('/wrapup-call', async (req, res) => {
   const payload = req.body as WrapupCallWebhookPayload;
 
   const callSid = req.body.CallSid;
   const log = getMakeLogger(callSid);
 
   if (!payload.HandoffData) {
-    log.info(`/wrapup-call`, "call completed w/out handoff data");
-    res.status(200).send("complete");
+    log.info(`/wrapup-call`, 'call completed w/out handoff data');
+    res.status(200).send('complete');
     return;
   }
 
@@ -302,42 +306,42 @@ router.post("/wrapup-call", async (req, res) => {
   } catch (error) {
     log.error(
       `/wrapup-call`,
-      "Unable to parse handoffData in wrapup webhook. ",
-      "Request Body: ",
-      JSON.stringify(req.body),
+      'Unable to parse handoffData in wrapup webhook. ',
+      'Request Body: ',
+      JSON.stringify(req.body)
     );
-    res.status(500).send({ status: "failed", error });
+    res.status(500).send({ status: 'failed', error });
     return;
   }
 
   try {
     switch (handoffData.reasonCode) {
-      case "transfer-to-flex":
+      case 'transfer-to-flex':
         const twiml = makeTransferToFlexHandoff(payload, handoffData);
-        res.type("xml").send(twiml);
+        res.type('xml').send(twiml);
         break;
 
-      case "error":
+      case 'error':
         log.info(
-          "/wrapup-call",
-          `wrapping up call that failed due to error, callSid: ${callSid}, message: ${handoffData.message}`,
+          '/wrapup-call',
+          `wrapping up call that failed due to error, callSid: ${callSid}, message: ${handoffData.message}`
         );
 
         await endCall(callSid);
-        res.status(200).send("complete");
+        res.status(200).send('complete');
         break;
 
       default:
         log.warn(
-          "/wrapup-call",
+          '/wrapup-call',
           `unknown handoff reasonCode, callSid: ${callSid}`,
-          JSON.stringify(handoffData),
+          JSON.stringify(handoffData)
         );
         await endCall(callSid);
-        res.status(200).send("complete");
+        res.status(200).send('complete');
     }
   } catch (error) {
-    log.error("/wrapup-call", "error while wrapping up a call. ", error);
+    log.error('/wrapup-call', 'error while wrapping up a call. ', error);
     res.status(500).send(error);
   }
 });

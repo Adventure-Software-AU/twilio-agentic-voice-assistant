@@ -1,16 +1,16 @@
-import type { ToolDefinition } from "../../types.js";
+import type { ToolDefinition } from '../../types.js';
 
 export const commonToolManifest: ToolDefinition[] = [
   {
-    name: "getUserByEmailOrPhone",
-    description: "Find a user by their email address or their phone number.",
-    type: "function",
+    name: 'getUserByEmailOrPhone',
+    description: 'Find a user by their email address or their phone number.',
+    type: 'function',
     parameters: {
-      type: "object",
+      type: 'object',
       properties: {
-        email: { type: "string", description: "The user's email address" },
+        email: { type: 'string', description: "The user's email address" },
         phone: {
-          type: "string",
+          type: 'string',
           description: "The user's phone in e164 format, i.e. +12223330001",
         },
       },
@@ -18,82 +18,62 @@ export const commonToolManifest: ToolDefinition[] = [
     },
   },
   {
-    name: "getOrderByConfirmationNumber",
-    description: "Find an order by its confirmation number.",
-    type: "function",
+    name: 'getOrderByConfirmationNumber',
+    description: 'Find an order by its confirmation number.',
+    type: 'function',
     parameters: {
-      type: "object",
+      type: 'object',
       properties: {
-        orderId: { type: "string", description: "The ID of the order" },
+        orderId: { type: 'string', description: 'The ID of the order' },
       },
-      required: ["orderId"],
+      required: ['orderId'],
     },
   },
   {
-    name: "getUserOrders",
-    description: "Get all orders for a specific user.",
-    type: "function",
+    name: 'getUserOrders',
+    description: 'Get all orders for a specific user.',
+    type: 'function',
     parameters: {
-      type: "object",
+      type: 'object',
       properties: {
         userId: {
-          type: "string",
-          description: "The user id from the user record",
+          type: 'string',
+          description: 'The user id from the user record',
         },
       },
-      required: ["userId"],
+      required: ['userId'],
     },
   },
   {
-    name: "executeRefund",
-    description: "Execute a refund for a given order",
-    type: "function",
+    name: 'sendSmsQuote',
+    description: 'Send an SMS message to the user with details about a quote.',
+    type: 'function',
     parameters: {
-      type: "object",
+      type: 'object',
       properties: {
-        authority: {
-          type: "string",
-          description:
-            "Explain why you have the authority to process this refund. The permission requirements are listed in the procedures section of the system instructions.",
-        },
-        orderId: {
-          type: "string",
-          description: "The id of the order being refunded.",
-        },
-        orderLineIds: {
-          type: "array",
-          items: { type: "string" },
-          description:
-            "The ids of the line items that are needed to be refunded.",
-        },
-        reason: {
-          type: "string",
-          description: "The reason the order is being refunded.",
+        products: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'A list of product names that are included in the quote',
         },
       },
-      required: ["authority", "orderId", "orderLineIds", "reason"],
+      required: ['phone', 'products'],
     },
   },
   {
-    name: "sendSmsRefundNotification",
-    description:
-      "Send an SMS message to the user with details about the refund in question.",
-    type: "function",
+    name: 'lookupServiceFees',
+    description: 'Return all service fees we provide.',
+    type: 'function',
     parameters: {
-      type: "object",
+      type: 'object',
       properties: {
-        orderId: {
-          type: "string",
-          description: "The id of the order being refunded.",
-        },
-        orderLineIds: {
-          type: "array",
-          items: { type: "string" },
+        productDetails: {
+          type: 'string',
           description:
-            "The ids of the line items that are needed to be refunded.",
+            'The general details about what the user wants fixed, be general, valid examples include "screen" or "battery"',
         },
       },
-      required: ["orderId", "orderLineIds"],
+      required: ['productDetails'],
     },
   },
 ];
